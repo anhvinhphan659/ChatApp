@@ -1,9 +1,11 @@
 package server.UI;
 
+import dataHandle.ClientHandler;
 import server.server.Server;
 
 import javax.swing.*;
 import javax.swing.border.EtchedBorder;
+import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -33,6 +35,10 @@ public class ServerUI extends JFrame
     private JTabbedPane displayTabbedPane;
 
     private JTextPane eventTextPane;
+
+    private String[][] userOnlineList;
+
+    private DefaultTableModel df;
 
     private JTable clientTable;
 
@@ -85,7 +91,9 @@ public class ServerUI extends JFrame
         eventTextPane=new JTextPane();
 
         //initalize table
-        clientTable=new JTable();
+        String[] header={"Name"};
+        df=new DefaultTableModel(userOnlineList,header);
+        clientTable=new JTable(df);
 
         //intialize panel
         topPanel=new JPanel();
@@ -211,20 +219,22 @@ public class ServerUI extends JFrame
                 }
                 int port=Integer.parseInt(portTextField.getText());
                 //start server
-                server=new Server(port);
-                Server.notifyEvent("ServerStarted",eventTextPane);
-                serverStateTextField.setText("Running");
-                //set up eventPanel
-                server.setEventDisplayPane(eventTextPane);
-                isActive=true;
-                Thread serverThread=new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        server.runServer();
-                    }
-                });
-                serverThread.start();
-
+                if(server==null) {
+                    server = new Server(port);
+                    Server.notifyEvent("ServerStarted", eventTextPane);
+                    serverStateTextField.setText("Running");
+                    //set up eventPanel
+                    server.setEventDisplayPane(eventTextPane);
+                    server.setServerUI(ServerUI.this);
+                    isActive = true;
+                    Thread serverThread = new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            server.runServer();
+                        }
+                    });
+                    serverThread.start();
+                }
             }
         });
 
@@ -257,6 +267,14 @@ public class ServerUI extends JFrame
                 dispose();
             }
         });
+    }
+
+    public void updateUserOnline()
+    {
+        String[] header={"Name"};
+        df.setDataVector(ClientHandler.getUserOnlineList(),header);
+        clientTable.setModel(df);
+        setVisible(true);
     }
 
 

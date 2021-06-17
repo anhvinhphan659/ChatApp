@@ -1,6 +1,7 @@
 package server.server;
 
 import dataHandle.ClientHandler;
+import server.UI.ServerUI;
 
 import javax.swing.*;
 import java.io.DataInputStream;
@@ -17,6 +18,7 @@ public class Server
     private int port;
     public static Vector<ClientHandler> clientList;
     public JTextPane eventDisplayPane;
+    private ServerUI serverUI;
 
     public Server(int port)
     {
@@ -87,14 +89,23 @@ public class Server
                     pane.setText(pane.getText()+annouce+"\n");
             }
         });
-
     }
 
     public void setEventDisplayPane(JTextPane pane)
     {
-
         eventDisplayPane=pane;
     }
+
+    public void setServerUI(ServerUI svui)
+    {
+        serverUI=svui;
+    }
+
+    public ServerUI getServerUI()
+    {
+        return serverUI;
+    }
+
 
 }
 
