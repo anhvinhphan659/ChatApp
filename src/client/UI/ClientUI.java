@@ -1,21 +1,30 @@
 package client.UI;
 
+import client.client.Client;
+import server.server.Server;
+
 import javax.swing.*;
 import javax.swing.border.EtchedBorder;
-
 import java.awt.*;
+import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.util.ArrayList;
-import java.util.LinkedList;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.io.File;
 
 public class ClientUI extends JFrame
 {
+    //set up for client
+    Client client=null;
+    private boolean isActive=false;
+
+    //set up for swing
     private JLabel serverLabel;
     private JLabel serverDetailLabel;
-    private JLabel nameLabel;
+    private JLabel stateLabel;
     private JLabel IPLabel;
     private JLabel portLabel;
-    private JLabel stateLabel;
+    private JLabel nameDisplayLabel;
     private JLabel onlineLabel;
     private JLabel userOnlineLabel;
     private JLabel registeredLabel;
@@ -32,16 +41,19 @@ public class ClientUI extends JFrame
 
     private JComboBox serverComboBox;
 
-    private JTextField nameTextField;
+    private JTextField stateTextField;
     private JTextField IPTextField;
     private JTextField portTextField;
-    private JTextField stateTextField;
+    private JTextField nameDisplayTextField;
     private JTextField onlineTextField;
     private JTextField messageTextField;
 
     private JCheckBox registeredCheckBox;
 
-    private java.util.List<JButton> userButtonList = new LinkedList<>();
+    private DefaultListModel userListModel;
+    private JList userList;
+
+    private String[] userOnlineArray={};
 
     private JButton connectButton;
     private JButton registerButton;
@@ -77,10 +89,10 @@ public class ClientUI extends JFrame
         //initialize
         serverLabel=new JLabel("Server:");
         serverDetailLabel=new JLabel("Server Details:");
-        nameLabel=new JLabel("Name: ");
+        stateLabel=new JLabel("State: ");
         IPLabel=new JLabel("IP: ");
         portLabel=new JLabel("Port: ");
-        stateLabel=new JLabel("State");
+        nameDisplayLabel =new JLabel("Name Display: ");
         onlineLabel=new JLabel("Online: ");
         userOnlineLabel=new JLabel("User online: ");
         registeredLabel =new JLabel("Registered");
@@ -91,19 +103,23 @@ public class ClientUI extends JFrame
         fileMenu=new JMenu("File");
         editMenu=new JMenu("Edit");
 
-        loadMenuItem=new JMenuItem("Load config");
-        saveMenuItem=new JMenuItem("Save config");
+        loadMenuItem=new JMenuItem("Load...");
+        saveMenuItem=new JMenuItem("Save...");
         deleteMenuItem=new JMenuItem("Delete... ");
         editMenuItem=new JMenuItem("Edit...");
 
         serverComboBox=new JComboBox();
 
-        nameTextField=new JTextField();
-        IPTextField=new JTextField();
+        stateTextField =new JTextField();
+        IPTextField=new JTextField("localhost");
         portTextField=new JTextField();
-        stateTextField=new JTextField();
+        nameDisplayTextField =new JTextField();
         onlineTextField=new JTextField();
         messageTextField=new JTextField();
+
+        userListModel=new DefaultListModel();
+        userListModel.addElement("test");
+        userList=new JList(userListModel);
 
         registeredCheckBox=new JCheckBox();
 
@@ -115,7 +131,9 @@ public class ClientUI extends JFrame
         sendMessageButton=new JButton("Send");
 
         messageTextPane=new JTextPane();
-        userOnlineScrollPane=new JScrollPane(userOnlinePanel);
+        userOnlineScrollPane=new JScrollPane(userList);
+
+
         messageScrollPane=new JScrollPane(messageTextPane);
 
         userOnlinePanel=new JPanel();
@@ -150,29 +168,33 @@ public class ClientUI extends JFrame
         serverDetailPanel.setLayout(null);
 
         serverDetailLabel.setBounds(20,20,200,30);
-        nameLabel.setBounds(20,70,50,30);
-        nameTextField.setBounds(80,70,150,30);
+        stateLabel.setBounds(20,70,50,30);
+        stateTextField.setBounds(80,70,150,30);
+        stateTextField.setEditable(false);
+        stateTextField.setText("not Running");
         IPLabel.setBounds(240,70,50,30);
         IPTextField.setBounds(290,70,150,30);
+        IPTextField.setEditable(false);
         portLabel.setBounds(450,70,50,30);
         portTextField.setBounds(500,70,100,30);
-        stateLabel.setBounds(20,120,50,30);
-        stateTextField.setBounds(70,120,100,30);
-        onlineLabel.setBounds(180,120,80,30);
-        onlineTextField.setBounds(260,120,50,30);
-        registeredCheckBox.setBounds(320,120,20,30);
-        registeredLabel.setBounds(350,120,100,30);
-        registerButton.setBounds(480,120,100,30);
+        nameDisplayLabel.setBounds(20,120,100,30);
+        nameDisplayTextField.setBounds(100,120,150,30);
+        onlineLabel.setBounds(260,120,80,30);
+        onlineTextField.setBounds(340,120,50,30);
+        registeredCheckBox.setBounds(400,120,20,30);
+        registeredCheckBox.setEnabled(false);
+        registeredLabel.setBounds(430,120,100,30);
+        registerButton.setBounds(540,120,100,30);
 
         serverDetailPanel.add(serverDetailLabel);
-        serverDetailPanel.add(nameLabel);
-        serverDetailPanel.add(nameTextField);
+        serverDetailPanel.add(stateLabel);
+        serverDetailPanel.add(stateTextField);
         serverDetailPanel.add(IPLabel);
         serverDetailPanel.add(IPTextField);
         serverDetailPanel.add(portLabel);
         serverDetailPanel.add(portTextField);
-        serverDetailPanel.add(stateLabel);
-        serverDetailPanel.add(stateTextField);
+        serverDetailPanel.add(nameDisplayLabel);
+        serverDetailPanel.add(nameDisplayTextField);
         serverDetailPanel.add(onlineLabel);
         serverDetailPanel.add(onlineTextField);
         serverDetailPanel.add(registeredCheckBox);
@@ -204,7 +226,6 @@ public class ClientUI extends JFrame
 
 
         userOnlineLabel.setPreferredSize(new Dimension(200,30));
-        userOnlinePanel.setLayout(new FlowLayout());
         userOnlineScrollPane.setPreferredSize(new Dimension(200,400));
 
         activePanel.add(userOnlineLabel,BorderLayout.NORTH);
@@ -245,6 +266,9 @@ public class ClientUI extends JFrame
         add(topPanel,BorderLayout.NORTH);
         add(centerPanel,BorderLayout.CENTER);
 
+        //set up action
+        setupAction();
+
     }
 
     public void showUI()
@@ -252,5 +276,145 @@ public class ClientUI extends JFrame
         setVisible(true);
     }
 
+    private void  setupAction()
+    {
+        loadMenuItem.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                loadMenuItemActionperformed(e);
+            }
+
+            private void loadMenuItemActionperformed(ActionEvent e)
+            {
+                JFileChooser fileChooser=new JFileChooser();
+                fileChooser.setFocusable(true);
+                fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+                int result=fileChooser.showOpenDialog(null);
+                if(result==JFileChooser.APPROVE_OPTION)
+                {
+                    File selectedFile=fileChooser.getSelectedFile();
+                    //TODO: process file
+                    System.out.println("File selected: "+selectedFile.getName());
+                }
+
+            }
+        });
+
+        sendFileButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                super.mouseClicked(e);
+                JFileChooser fileChooser=new JFileChooser();
+                fileChooser.setFocusable(true);
+                fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+                int result=fileChooser.showOpenDialog(null);
+                if(result==JFileChooser.APPROVE_OPTION)
+                {
+                    File selectedFile=fileChooser.getSelectedFile();
+                    //TODO: process file
+                    System.out.println("File selected: "+selectedFile.getName());
+                }
+
+            }
+        });
+
+        connectButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                super.mouseClicked(e);
+                //TODO: Get data and connect to server
+                if(connectButton.getText().compareTo("Connect")==0)
+                {
+                    String host=IPTextField.getText();
+                    int port=Integer.parseInt(portTextField.getText());
+                    if(client==null) {
+                        Thread clientRun = new Thread(new Runnable() {
+                            @Override
+                            public void run() {
+                                client = new Client(host, port);
+                                client.setClientUI(ClientUI.this);
+
+                            }
+                        });
+                        clientRun.start();
+                    }
+                    connectButton.setText("Disconnect");
+
+                }
+                else
+                {
+                    connectButton.setText("Connect");
+                    //TODO: disconnect to server
+                }
+            }
+        });
+
+        registerButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                super.mouseClicked(e);
+                //check name
+                String name=nameDisplayTextField.getText();
+                if(name.isEmpty())
+                {
+                    JOptionPane.showMessageDialog(null,"Please fill name to display");
+                    return;
+                }
+                registeredCheckBox.setSelected(true);
+                registerButton.setEnabled(false);
+
+                client.setMessageTextPane(messageTextPane);
+                client.joinServer(name);
+                Thread read=new Thread(client.new ReadThread());
+                read.start();
+
+
+            }
+        });
+
+        sendMessageButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                super.mouseClicked(e);
+                String message=messageTextField.getText();
+                if(message.isEmpty())
+                    return;
+                if(client!=null)
+                {
+                    Thread send=new Thread(client.new WriteThread(message));
+                    send.start();
+                    Server.notifyEvent(message,messageTextPane);
+                }
+                messageTextField.setText("");
+
+            }
+        });
+
+        userList.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                super.mouseClicked(e);
+                if(e.getClickCount()==2)
+                {
+                    SwingUtilities.invokeLater(new Runnable() {
+                        @Override
+                        public void run() {
+                            messageTextPane.setText("");
+                        }
+                    });
+                }
+            }
+        });
+
+
+    }
+
+    public void setUserOnlineArray(String[] data)
+    {
+        userOnlineArray=data;
+        userList.setListData(data);
+        setVisible(true);
+        onlineTextField.setText(String.valueOf(data.length));
+    }
 
 }

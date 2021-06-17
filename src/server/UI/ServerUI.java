@@ -1,19 +1,29 @@
 package server.UI;
 
-import javax.crypto.BadPaddingException;
+import server.server.Server;
+
 import javax.swing.*;
 import javax.swing.border.EtchedBorder;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.net.Inet4Address;
+import java.net.UnknownHostException;
 
 public class ServerUI extends JFrame
 {
+    //set up member for server
+    private Server server;
+    private boolean isActive=false;
+
+    //set up for swing
     private JLabel chatServerLabel;
     private JLabel serverDetailLabel;
-    private JLabel serverNameLabel;
+    private JLabel serverStateLabel;
     private JLabel IPLabel;
     private JLabel portLabel;
 
-    private JTextField serverNameTextField;
+    private JTextField serverStateTextField;
     private JTextField IPTextField;
     private JTextField portTextField;
 
@@ -49,15 +59,18 @@ public class ServerUI extends JFrame
         setPreferredSize(new Dimension(500,800));
         setLayout(new BorderLayout());
 
+        //set up server
+        server=null;
+
         //initialize label
         chatServerLabel=new JLabel("CHAT SERVER CONTROL");
         serverDetailLabel=new JLabel("Server Details");
-        serverNameLabel=new JLabel("Server Name:");
+        serverStateLabel =new JLabel("Server State:");
         IPLabel=new JLabel("IP: ");
         portLabel=new JLabel("Port: ");
 
         //initilaize textfield
-        serverNameTextField=new JTextField();
+        serverStateTextField =new JTextField();
         IPTextField=new JTextField();
         portTextField=new JTextField();
 
@@ -103,23 +116,24 @@ public class ServerUI extends JFrame
         centerPanel.setLayout(new BorderLayout());
         //set up detail panel
         serverDetailLabel.setBounds(20,20,200,30);
-        serverNameLabel.setBounds(20,70,100,30);
-        serverNameTextField.setBounds(130,70,200,30);
-        serverNameTextField.setEditable(false);
+        serverStateLabel.setBounds(20,70,100,30);
+        serverStateTextField.setBounds(130,70,200,30);
+        serverStateTextField.setEditable(false);
+        serverStateTextField.setText("Not running...");
         IPLabel.setBounds(20,120,50,30);
         IPTextField.setBounds(80,120,200,30);
         IPTextField.setEditable(false);
         portLabel.setBounds(300,120,50,30);
         portTextField.setBounds(360,120,100,30);
-        portTextField.setEditable(false);
+        portTextField.setText("8888");
 
         detailPanel.setPreferredSize(new Dimension(500,200));
         detailPanel.setBorder(new EtchedBorder(EtchedBorder.RAISED));
         detailPanel.setLayout(null);
 
         detailPanel.add(serverDetailLabel);
-        detailPanel.add(serverNameLabel);
-        detailPanel.add(serverNameTextField);
+        detailPanel.add(serverStateLabel);
+        detailPanel.add(serverStateTextField);
         detailPanel.add(IPLabel);
         detailPanel.add(IPTextField);
         detailPanel.add(portLabel);
@@ -127,9 +141,10 @@ public class ServerUI extends JFrame
 
         //set up tabbed panel
         clientScollPane.setBackground(Color.WHITE);
-        clientScollPane.add(clientTable);
+        clientScollPane.setViewportView(clientTable);
         eventScrollPane.setBackground(Color.WHITE);
-        eventScrollPane.add(eventTextPane);
+        eventScrollPane.setViewportView(eventTextPane);
+        eventTextPane.setEditable(false);
 
         displayTabbedPane.setPreferredSize(new Dimension(500,200));
         displayTabbedPane.setBorder(new EtchedBorder(EtchedBorder.RAISED));
@@ -160,12 +175,90 @@ public class ServerUI extends JFrame
 
         add(buttonPanel,BorderLayout.SOUTH);
 
+        //decorate UI
+        clientScollPane.setBackground(Color.WHITE);
+        eventScrollPane.setBackground(Color.WHITE);
+
+        //set up button action
+        setupAction();
+
     }
 
     public void showUI()
     {
-        setVisible(true);
+        EventQueue.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+                setVisible(true);
+            }
+        });
+
     }
+
+    private void setupAction()
+    {
+        startButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                super.mouseClicked(e);
+                try {
+                    IPTextField.setText(Inet4Address.getLocalHost().getHostAddress());
+
+                }
+                catch (UnknownHostException ue)
+                {
+                    System.out.println("Error set IP "+ue.getCause());
+                }
+                int port=Integer.parseInt(portTextField.getText());
+                //start server
+                server=new Server(port);
+                Server.notifyEvent("ServerStarted",eventTextPane);
+                serverStateTextField.setText("Running");
+                //set up eventPanel
+                server.setEventDisplayPane(eventTextPane);
+                isActive=true;
+                Thread serverThread=new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        server.runServer();
+                    }
+                });
+                serverThread.start();
+
+            }
+        });
+
+
+        stopButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                super.mouseClicked(e);
+                if(server!=null&&isActive)
+                {
+                    server.closeServer();
+                    server=null;
+
+
+                serverStateTextField.setText("Not Running...");
+                IPTextField.setText("");
+                Server.notifyEvent("Server stopped",eventTextPane);
+                }
+            }
+        });
+
+        exitButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                super.mouseClicked(e);
+                if(server!=null)
+                {
+                    server.closeServer();
+                }
+                dispose();
+            }
+        });
+    }
+
 
 
 
